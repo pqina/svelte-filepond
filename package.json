@@ -1,0 +1,47 @@
+{
+  "name": "svelte-filepond",
+  "version": "0.0.1",
+  "description": "A handy FilePond adapter component for Svelte",
+  "homepage": "https://pqina.nl/filepond",
+  "license": "MIT",
+  "repository": "pqina/svelte-filepond",
+  "svelte": "src/index.js",
+  "module": "dist/index.mjs",
+  "main": "dist/index.js",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "svelte",
+    "sveltejs",
+    "filepond",
+    "file",
+    "upload",
+    "drag",
+    "drop",
+    "browse",
+    "image",
+    "preview"
+  ],
+  "author": {
+    "name": "PQINA",
+    "url": "https://pqina.nl"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^6.0.0",
+    "rollup": "^1.20.0",
+    "rollup-plugin-svelte": "^5.0.0",
+    "svelte": "^3.0.0"
+  },
+  "peerDependencies": {
+    "filepond": ">=3.7.x <5.x"
+  },
+  "dependencies": {
+    "filepond": "^4.20.1"
+  }
+}
