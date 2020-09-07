@@ -13,21 +13,6 @@ export const registerPlugin = FilePond.registerPlugin;
 // is FilePond supported
 export const isSupported = FilePond.supported();
 
-// filtered methods
-const filteredMethods = [
-  'setOptions',
-  'on',
-  'off',
-  'onOnce',
-  'appendTo',
-  'insertAfter',
-  'insertBefore',
-  'isAttachedTo',
-  'replaceElement',
-  'restoreElement',
-  'destroy'
-];
-
 // private props, root element + active instance of FilePond
 let root;
 let instance;

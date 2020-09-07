@@ -1,6 +1,6 @@
 {
   "name": "svelte-filepond",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A handy FilePond adapter component for Svelte",
   "homepage": "https://pqina.nl/filepond",
   "license": "MIT",
@@ -40,8 +40,5 @@
   },
   "peerDependencies": {
     "filepond": ">=3.7.x <5.x"
-  },
-  "dependencies": {
-    "filepond": "^4.20.1"
   }
 }
