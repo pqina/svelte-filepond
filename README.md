@@ -26,7 +26,7 @@ Svelte FilePond is a handy adapter component for [FilePond](https://pqina.nl/fil
 
 [Learn more about Doka](https://pqina.nl/doka/)
 
-<img src="https://github.com/pqina/filepond-github-assets/blob/master/doka.gif?raw=true" width="478" alt=""/>
+<img src="https://github.com/pqina/filepond-github-assets/blob/master/filepond_doka.gif?raw=true" width="600" alt=""/>
 
 ---
 
