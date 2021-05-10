@@ -9,15 +9,14 @@ Svelte FilePond is a handy adapter component for [FilePond](https://pqina.nl/fil
 
 ### Core Features
 
-*   Accepts **directories**, **files**, blobs, local URLs, **remote URLs** and Data URIs.
-*   **Drop files**, select on filesystem, **copy and paste files**, or add files using the API.
-*   **Async uploading** with AJAX, or encode files as base64 data and send along form post.
-*   **Accessible**, tested with AT software like VoiceOver and JAWS, **navigable by Keyboard**.
-*   **Image optimization**, automatic image resizing, **cropping**, and **fixes EXIF orientation**.
-*   **Responsive**, automatically scales to available space, is functional on both **mobile and desktop devices**.
+- Accepts **directories**, **files**, blobs, local URLs, **remote URLs** and Data URIs.
+- **Drop files**, select on filesystem, **copy and paste files**, or add files using the API.
+- **Async uploading** with AJAX, or encode files as base64 data and send along form post.
+- **Accessible**, tested with AT software like VoiceOver and JAWS, **navigable by Keyboard**.
+- **Image optimization**, automatic image resizing, **cropping**, and **fixes EXIF orientation**.
+- **Responsive**, automatically scales to available space, is functional on both **mobile and desktop devices**.
 
 [Learn more about FilePond](https://pqina.nl/filepond/)
-
 
 ---
 
@@ -42,12 +41,14 @@ Usage:
 ```svelte
 <script>
 import FilePond, { registerPlugin, supported } from 'svelte-filepond';
+import 'filepond/dist/filepond.min.css';
 
 // Import the Image EXIF Orientation and Image Preview plugins
 // Note: These need to be installed separately
 // `npm i filepond-plugin-image-preview filepond-plugin-image-exif-orientation --save`
 import FilePondPluginImageExifOrientation from 'filepond-plugin-image-exif-orientation'
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview'
+import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.min.css';
 
 // Register the plugins
 registerPlugin(FilePondPluginImageExifOrientation, FilePondPluginImagePreview);
@@ -77,12 +78,8 @@ function handleAddFile(err, fileItem) {
 		allowMultiple={true}
 		oninit={handleInit}
 		onaddfile={handleAddFile}/>
-	
-</div>
 
-<style global>
-@import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
-</style>
+</div>
 ```
 
 [Read the docs for more information](https://pqina.nl/filepond/docs/patterns/frameworks/svelte/)
