@@ -30,6 +30,8 @@ Svelte FilePond is a handy adapter component for [FilePond](https://pqina.nl/fil
 
 ---
 
+This package needs PostCSS and Svelte Preprocess, see the example folder for the required `postcss.config.js` and `rollup.config.js` changes. You can run `npm install` in the example folder and it will set up the example project.
+
 Installation:
 
 ```bash
@@ -39,16 +41,19 @@ npm install svelte-filepond filepond --save
 Usage:
 
 ```svelte
+<style global>
+@import 'filepond/dist/filepond.css';
+@import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+</style>
+
 <script>
 import FilePond, { registerPlugin, supported } from 'svelte-filepond';
-import 'filepond/dist/filepond.min.css';
 
 // Import the Image EXIF Orientation and Image Preview plugins
 // Note: These need to be installed separately
 // `npm i filepond-plugin-image-preview filepond-plugin-image-exif-orientation --save`
 import FilePondPluginImageExifOrientation from 'filepond-plugin-image-exif-orientation'
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview'
-import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.min.css';
 
 // Register the plugins
 registerPlugin(FilePondPluginImageExifOrientation, FilePondPluginImagePreview);

@@ -24,6 +24,6 @@
     "filepond-plugin-image-exif-orientation": "^1.0.9",
     "filepond-plugin-image-preview": "^4.6.4",
     "sirv-cli": "^1.0.0",
-    "svelte-filepond": "0.0.1"
+    "svelte-filepond": "^0.2.0"
   }
 }
