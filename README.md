@@ -22,11 +22,11 @@ Svelte FilePond is a handy adapter component for [FilePond](https://pqina.nl/fil
 
 ### Also need Image Editing?
 
-**Doka Image Editor** might be just what you're looking for. It's a Modern JavaScript Image Editor, Doka supports setting **crop aspect ratios**, **resizing**, **rotating**, **cropping**, and **flipping** images. Above all, it integrates beautifully with FilePond.
+**Pintura the modern JavaScript Image Editor** is what you're looking for. Pintura supports setting **crop aspect ratios**, **resizing**, **rotating**, **cropping**, and **flipping** images. Above all, it integrates beautifully with FilePond.
 
-[Learn more about Doka](https://pqina.nl/doka/)
+[Learn more about Pintura](https://pqina.nl/pintura/?ref=github-svelte-filepond)
 
-<img src="https://github.com/pqina/filepond-github-assets/blob/master/filepond_doka.gif?raw=true" width="600" alt=""/>
+<img src="https://github.com/pqina/filepond-github-assets/blob/master/filepond_pintura.gif?raw=true" width="600" alt=""/>
 
 ---
 
