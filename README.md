@@ -4,7 +4,7 @@ Svelte FilePond is a handy adapter component for [FilePond](https://pqina.nl/fil
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/pqina/svelte-filepond/blob/master/LICENSE)
 [![npm version](https://badge.fury.io/js/svelte-filepond.svg)](https://www.npmjs.com/package/svelte-filepond)
-
+![npm](https://img.shields.io/npm/dt/svelte-filepond)
 
 ---
 
