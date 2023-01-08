@@ -11,7 +11,8 @@
   "types": "types/index.d.ts",
   "files": [
     "src",
-    "dist"
+    "dist",
+    "types"
   ],
   "scripts": {
     "build": "rollup -c",
