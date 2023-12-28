@@ -1,6 +1,6 @@
 {
   "name": "svelte-filepond",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A handy FilePond adapter component for Svelte",
   "homepage": "https://pqina.nl/filepond",
   "license": "MIT",
