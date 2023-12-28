@@ -5,7 +5,11 @@
   "homepage": "https://pqina.nl/filepond",
   "license": "MIT",
   "repository": "pqina/svelte-filepond",
-  "svelte": "src/index.js",
+  "exports": {
+    ".": {
+      "svelte": "./src/index.js"
+    }
+  },
   "module": "dist/index.mjs",
   "main": "dist/index.js",
   "types": "types/index.d.ts",
