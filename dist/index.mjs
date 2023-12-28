@@ -30,7 +30,6 @@ function exclude_internal_props(props) {
             result[k] = props[k];
     return result;
 }
-
 function append(target, node) {
     target.appendChild(node);
 }
@@ -38,7 +37,9 @@ function insert(target, node, anchor) {
     target.insertBefore(node, anchor || null);
 }
 function detach(node) {
-    node.parentNode.removeChild(node);
+    if (node.parentNode) {
+        node.parentNode.removeChild(node);
+    }
 }
 function element(name) {
     return document.createElement(name);
@@ -59,12 +60,25 @@ function set_current_component(component) {
 }
 function get_current_component() {
     if (!current_component)
-        throw new Error(`Function called outside component initialization`);
+        throw new Error('Function called outside component initialization');
     return current_component;
 }
+/**
+ * Schedules a callback to run immediately after the component has been updated.
+ *
+ * The first time the callback runs will be after the initial `onMount`
+ */
 function afterUpdate(fn) {
     get_current_component().$$.after_update.push(fn);
 }
+/**
+ * Schedules a callback to run immediately before the component is unmounted.
+ *
+ * Out of `onMount`, `beforeUpdate`, `afterUpdate` and `onDestroy`, this is the
+ * only one that runs inside a server-side component.
+ *
+ * https://svelte.dev/docs#run-time-svelte-ondestroy
+ */
 function onDestroy(fn) {
     get_current_component().$$.on_destroy.push(fn);
 }
@@ -84,21 +98,40 @@ function schedule_update() {
 function add_render_callback(fn) {
     render_callbacks.push(fn);
 }
-let flushing = false;
+// flush() calls callbacks in this order:
+// 1. All beforeUpdate callbacks, in order: parents before children
+// 2. All bind:this callbacks, in reverse order: children before parents.
+// 3. All afterUpdate callbacks, in order: parents before children. EXCEPT
+//    for afterUpdates called during the initial onMount, which are called in
+//    reverse order: children before parents.
+// Since callbacks might update component values, which could trigger another
+// call to flush(), the following steps guard against this:
+// 1. During beforeUpdate, any updated components will be added to the
+//    dirty_components array and will cause a reentrant call to flush(). Because
+//    the flush index is kept outside the function, the reentrant call will pick
+//    up where the earlier call left off and go through all dirty components. The
+//    current_component value is saved and restored so that the reentrant call will
+//    not interfere with the "parent" flush() call.
+// 2. bind:this callbacks cannot trigger new flush() calls.
+// 3. During afterUpdate, any updated components will NOT have their afterUpdate
+//    callback called a second time; the seen_callbacks set, outside the flush()
+//    function, guarantees this behavior.
 const seen_callbacks = new Set();
+let flushidx = 0; // Do *not* move this inside the flush() function
 function flush() {
-    if (flushing)
-        return;
-    flushing = true;
+    const saved_component = current_component;
     do {
         // first, call beforeUpdate functions
         // and update components
-        for (let i = 0; i < dirty_components.length; i += 1) {
-            const component = dirty_components[i];
+        while (flushidx < dirty_components.length) {
+            const component = dirty_components[flushidx];
+            flushidx++;
             set_current_component(component);
             update(component.$$);
         }
+        set_current_component(null);
         dirty_components.length = 0;
+        flushidx = 0;
         while (binding_callbacks.length)
             binding_callbacks.pop()();
         // then, once components are updated, call
@@ -118,8 +151,8 @@ function flush() {
         flush_callbacks.pop()();
     }
     update_scheduled = false;
-    flushing = false;
     seen_callbacks.clear();
+    set_current_component(saved_component);
 }
 function update($$) {
     if ($$.fragment !== null) {
@@ -138,22 +171,27 @@ function transition_in(block, local) {
         block.i(local);
     }
 }
-function mount_component(component, target, anchor) {
-    const { fragment, on_mount, on_destroy, after_update } = component.$$;
+function mount_component(component, target, anchor, customElement) {
+    const { fragment, after_update } = component.$$;
     fragment && fragment.m(target, anchor);
-    // onMount happens before the initial afterUpdate
-    add_render_callback(() => {
-        const new_on_destroy = on_mount.map(run).filter(is_function);
-        if (on_destroy) {
-            on_destroy.push(...new_on_destroy);
-        }
-        else {
-            // Edge case - component was destroyed immediately,
-            // most likely as a result of a binding initialising
-            run_all(new_on_destroy);
-        }
-        component.$$.on_mount = [];
-    });
+    if (!customElement) {
+        // onMount happens before the initial afterUpdate
+        add_render_callback(() => {
+            const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
+            // if the component was destroyed immediately
+            // it will update the `$$.on_destroy` reference to `null`.
+            // the destructured on_destroy may still reference to the old array
+            if (component.$$.on_destroy) {
+                component.$$.on_destroy.push(...new_on_destroy);
+            }
+            else {
+                // Edge case - component was destroyed immediately,
+                // most likely as a result of a binding initialising
+                run_all(new_on_destroy);
+            }
+            component.$$.on_mount = [];
+        });
+    }
     after_update.forEach(add_render_callback);
 }
 function destroy_component(component, detaching) {
@@ -175,13 +213,12 @@ function make_dirty(component, i) {
     }
     component.$$.dirty[(i / 31) | 0] |= (1 << (i % 31));
 }
-function init(component, options, instance, create_fragment, not_equal, props, dirty = [-1]) {
+function init(component, options, instance, create_fragment, not_equal, props, append_styles, dirty = [-1]) {
     const parent_component = current_component;
     set_current_component(component);
-    const prop_values = options.props || {};
     const $$ = component.$$ = {
         fragment: null,
-        ctx: null,
+        ctx: [],
         // state
         props,
         update: noop,
@@ -190,17 +227,20 @@ function init(component, options, instance, create_fragment, not_equal, props, d
         // lifecycle
         on_mount: [],
         on_destroy: [],
+        on_disconnect: [],
         before_update: [],
         after_update: [],
-        context: new Map(parent_component ? parent_component.$$.context : []),
+        context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
         // everything else
         callbacks: blank_object(),
         dirty,
-        skip_bound: false
+        skip_bound: false,
+        root: options.target || parent_component.$$.root
     };
+    append_styles && append_styles($$.root);
     let ready = false;
     $$.ctx = instance
-        ? instance(component, prop_values, (i, ret, ...rest) => {
+        ? instance(component, options.props || {}, (i, ret, ...rest) => {
             const value = rest.length ? rest[0] : ret;
             if ($$.ctx && not_equal($$.ctx[i], $$.ctx[i] = value)) {
                 if (!$$.skip_bound && $$.bound[i])
@@ -229,17 +269,23 @@ function init(component, options, instance, create_fragment, not_equal, props, d
         }
         if (options.intro)
             transition_in(component.$$.fragment);
-        mount_component(component, options.target, options.anchor);
+        mount_component(component, options.target, options.anchor, options.customElement);
         flush();
     }
     set_current_component(parent_component);
 }
+/**
+ * Base class for Svelte components. Used when dev=false.
+ */
 class SvelteComponent {
     $destroy() {
         destroy_component(this, 1);
         this.$destroy = noop;
     }
     $on(type, callback) {
+        if (!is_function(callback)) {
+            return noop;
+        }
         const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
         callbacks.push(callback);
         return () => {
@@ -10095,7 +10141,7 @@ if (supported()) {
   };
 }
 
-/* src/Component.svelte generated by Svelte v3.24.1 */
+/* src/Component.svelte generated by Svelte v3.55.0 */
 
 function create_fragment(ctx) {
 	let div;
@@ -10166,10 +10212,7 @@ function instance_1($$self, $$props, $$invalidate) {
 	let root;
 
 	let instance;
-
-	// base props for use on file input
 	let { class: klass = undefined } = $$props;
-
 	let { id = undefined } = $$props;
 	let { name = undefined } = $$props;
 	let { allowMultiple = undefined } = $$props;
@@ -10220,8 +10263,6 @@ function instance_1($$self, $$props, $$invalidate) {
 			$$invalidate(16, prepareFiles = instance.prepareFiles);
 			$$invalidate(17, processFile = instance.processFile);
 			$$invalidate(18, processFiles = instance.processFiles);
-			$$invalidate(19, removeFile = instance.removeFile);
-			$$invalidate(20, removeFiles = instance.removeFiles);
 			$$invalidate(21, sort = instance.sort);
 		} else {
 			instance.setOptions($$props);
@@ -10236,7 +10277,7 @@ function instance_1($$self, $$props, $$invalidate) {
 	});
 
 	function input_binding($$value) {
-		binding_callbacks[$$value ? "unshift" : "push"](() => {
+		binding_callbacks[$$value ? 'unshift' : 'push'](() => {
 			root = $$value;
 			$$invalidate(7, root);
 		});
@@ -10244,27 +10285,27 @@ function instance_1($$self, $$props, $$invalidate) {
 
 	$$self.$$set = $$new_props => {
 		$$invalidate(27, $$props = assign(assign({}, $$props), exclude_internal_props($$new_props)));
-		if ("class" in $$new_props) $$invalidate(0, klass = $$new_props.class);
-		if ("id" in $$new_props) $$invalidate(1, id = $$new_props.id);
-		if ("name" in $$new_props) $$invalidate(2, name = $$new_props.name);
-		if ("allowMultiple" in $$new_props) $$invalidate(3, allowMultiple = $$new_props.allowMultiple);
-		if ("required" in $$new_props) $$invalidate(4, required = $$new_props.required);
-		if ("captureMethod" in $$new_props) $$invalidate(5, captureMethod = $$new_props.captureMethod);
-		if ("acceptedFileTypes" in $$new_props) $$invalidate(6, acceptedFileTypes = $$new_props.acceptedFileTypes);
-		if ("addFile" in $$new_props) $$invalidate(8, addFile = $$new_props.addFile);
-		if ("addFiles" in $$new_props) $$invalidate(9, addFiles = $$new_props.addFiles);
-		if ("browse" in $$new_props) $$invalidate(10, browse = $$new_props.browse);
-		if ("fireSync" in $$new_props) $$invalidate(11, fireSync = $$new_props.fireSync);
-		if ("getFile" in $$new_props) $$invalidate(12, getFile = $$new_props.getFile);
-		if ("getFiles" in $$new_props) $$invalidate(13, getFiles = $$new_props.getFiles);
-		if ("moveFile" in $$new_props) $$invalidate(14, moveFile = $$new_props.moveFile);
-		if ("prepareFile" in $$new_props) $$invalidate(15, prepareFile = $$new_props.prepareFile);
-		if ("prepareFiles" in $$new_props) $$invalidate(16, prepareFiles = $$new_props.prepareFiles);
-		if ("processFile" in $$new_props) $$invalidate(17, processFile = $$new_props.processFile);
-		if ("processFiles" in $$new_props) $$invalidate(18, processFiles = $$new_props.processFiles);
-		if ("removeFile" in $$new_props) $$invalidate(19, removeFile = $$new_props.removeFile);
-		if ("removeFiles" in $$new_props) $$invalidate(20, removeFiles = $$new_props.removeFiles);
-		if ("sort" in $$new_props) $$invalidate(21, sort = $$new_props.sort);
+		if ('class' in $$new_props) $$invalidate(0, klass = $$new_props.class);
+		if ('id' in $$new_props) $$invalidate(1, id = $$new_props.id);
+		if ('name' in $$new_props) $$invalidate(2, name = $$new_props.name);
+		if ('allowMultiple' in $$new_props) $$invalidate(3, allowMultiple = $$new_props.allowMultiple);
+		if ('required' in $$new_props) $$invalidate(4, required = $$new_props.required);
+		if ('captureMethod' in $$new_props) $$invalidate(5, captureMethod = $$new_props.captureMethod);
+		if ('acceptedFileTypes' in $$new_props) $$invalidate(6, acceptedFileTypes = $$new_props.acceptedFileTypes);
+		if ('addFile' in $$new_props) $$invalidate(8, addFile = $$new_props.addFile);
+		if ('addFiles' in $$new_props) $$invalidate(9, addFiles = $$new_props.addFiles);
+		if ('browse' in $$new_props) $$invalidate(10, browse = $$new_props.browse);
+		if ('fireSync' in $$new_props) $$invalidate(11, fireSync = $$new_props.fireSync);
+		if ('getFile' in $$new_props) $$invalidate(12, getFile = $$new_props.getFile);
+		if ('getFiles' in $$new_props) $$invalidate(13, getFiles = $$new_props.getFiles);
+		if ('moveFile' in $$new_props) $$invalidate(14, moveFile = $$new_props.moveFile);
+		if ('prepareFile' in $$new_props) $$invalidate(15, prepareFile = $$new_props.prepareFile);
+		if ('prepareFiles' in $$new_props) $$invalidate(16, prepareFiles = $$new_props.prepareFiles);
+		if ('processFile' in $$new_props) $$invalidate(17, processFile = $$new_props.processFile);
+		if ('processFiles' in $$new_props) $$invalidate(18, processFiles = $$new_props.processFiles);
+		if ('removeFile' in $$new_props) $$invalidate(19, removeFile = $$new_props.removeFile);
+		if ('removeFiles' in $$new_props) $$invalidate(20, removeFiles = $$new_props.removeFiles);
+		if ('sort' in $$new_props) $$invalidate(21, sort = $$new_props.sort);
 	};
 
 	$$props = exclude_internal_props($$props);
@@ -10342,7 +10383,7 @@ class Component extends SvelteComponent {
 	}
 
 	set class(klass) {
-		this.$set({ class: klass });
+		this.$$set({ class: klass });
 		flush();
 	}
 
@@ -10351,7 +10392,7 @@ class Component extends SvelteComponent {
 	}
 
 	set id(id) {
-		this.$set({ id });
+		this.$$set({ id });
 		flush();
 	}
 
@@ -10360,7 +10401,7 @@ class Component extends SvelteComponent {
 	}
 
 	set name(name) {
-		this.$set({ name });
+		this.$$set({ name });
 		flush();
 	}
 
@@ -10369,7 +10410,7 @@ class Component extends SvelteComponent {
 	}
 
 	set allowMultiple(allowMultiple) {
-		this.$set({ allowMultiple });
+		this.$$set({ allowMultiple });
 		flush();
 	}
 
@@ -10378,7 +10419,7 @@ class Component extends SvelteComponent {
 	}
 
 	set required(required) {
-		this.$set({ required });
+		this.$$set({ required });
 		flush();
 	}
 
@@ -10387,7 +10428,7 @@ class Component extends SvelteComponent {
 	}
 
 	set captureMethod(captureMethod) {
-		this.$set({ captureMethod });
+		this.$$set({ captureMethod });
 		flush();
 	}
 
@@ -10396,7 +10437,7 @@ class Component extends SvelteComponent {
 	}
 
 	set acceptedFileTypes(acceptedFileTypes) {
-		this.$set({ acceptedFileTypes });
+		this.$$set({ acceptedFileTypes });
 		flush();
 	}
 
@@ -10405,7 +10446,7 @@ class Component extends SvelteComponent {
 	}
 
 	set addFile(addFile) {
-		this.$set({ addFile });
+		this.$$set({ addFile });
 		flush();
 	}
 
@@ -10414,7 +10455,7 @@ class Component extends SvelteComponent {
 	}
 
 	set addFiles(addFiles) {
-		this.$set({ addFiles });
+		this.$$set({ addFiles });
 		flush();
 	}
 
@@ -10423,7 +10464,7 @@ class Component extends SvelteComponent {
 	}
 
 	set browse(browse) {
-		this.$set({ browse });
+		this.$$set({ browse });
 		flush();
 	}
 
@@ -10432,7 +10473,7 @@ class Component extends SvelteComponent {
 	}
 
 	set fireSync(fireSync) {
-		this.$set({ fireSync });
+		this.$$set({ fireSync });
 		flush();
 	}
 
@@ -10441,7 +10482,7 @@ class Component extends SvelteComponent {
 	}
 
 	set getFile(getFile) {
-		this.$set({ getFile });
+		this.$$set({ getFile });
 		flush();
 	}
 
@@ -10450,7 +10491,7 @@ class Component extends SvelteComponent {
 	}
 
 	set getFiles(getFiles) {
-		this.$set({ getFiles });
+		this.$$set({ getFiles });
 		flush();
 	}
 
@@ -10459,7 +10500,7 @@ class Component extends SvelteComponent {
 	}
 
 	set moveFile(moveFile) {
-		this.$set({ moveFile });
+		this.$$set({ moveFile });
 		flush();
 	}
 
@@ -10468,7 +10509,7 @@ class Component extends SvelteComponent {
 	}
 
 	set prepareFile(prepareFile) {
-		this.$set({ prepareFile });
+		this.$$set({ prepareFile });
 		flush();
 	}
 
@@ -10477,7 +10518,7 @@ class Component extends SvelteComponent {
 	}
 
 	set prepareFiles(prepareFiles) {
-		this.$set({ prepareFiles });
+		this.$$set({ prepareFiles });
 		flush();
 	}
 
@@ -10486,7 +10527,7 @@ class Component extends SvelteComponent {
 	}
 
 	set processFile(processFile) {
-		this.$set({ processFile });
+		this.$$set({ processFile });
 		flush();
 	}
 
@@ -10495,7 +10536,7 @@ class Component extends SvelteComponent {
 	}
 
 	set processFiles(processFiles) {
-		this.$set({ processFiles });
+		this.$$set({ processFiles });
 		flush();
 	}
 
@@ -10504,7 +10545,7 @@ class Component extends SvelteComponent {
 	}
 
 	set removeFile(removeFile) {
-		this.$set({ removeFile });
+		this.$$set({ removeFile });
 		flush();
 	}
 
@@ -10513,7 +10554,7 @@ class Component extends SvelteComponent {
 	}
 
 	set removeFiles(removeFiles) {
-		this.$set({ removeFiles });
+		this.$$set({ removeFiles });
 		flush();
 	}
 
@@ -10522,7 +10563,7 @@ class Component extends SvelteComponent {
 	}
 
 	set sort(sort) {
-		this.$set({ sort });
+		this.$$set({ sort });
 		flush();
 	}
 }

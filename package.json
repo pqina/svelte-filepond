@@ -8,9 +8,11 @@
   "svelte": "src/index.js",
   "module": "dist/index.mjs",
   "main": "dist/index.js",
+  "types": "types/index.d.ts",
   "files": [
     "src",
-    "dist"
+    "dist",
+    "types"
   ],
   "scripts": {
     "build": "rollup -c",
@@ -35,8 +37,8 @@
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^6.0.0",
     "rollup": "^1.20.0",
-    "rollup-plugin-svelte": "^5.0.0",
-    "svelte": "^3.0.0"
+    "rollup-plugin-svelte": "^6.1.1",
+    "svelte": "^3.31.0"
   },
   "peerDependencies": {
     "filepond": ">=3.7.x <5.x"
