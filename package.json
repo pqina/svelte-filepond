@@ -10,6 +10,7 @@
       "svelte": "./src/index.js"
     }
   },
+  "svelte": "src/index.js",
   "module": "dist/index.mjs",
   "main": "dist/index.js",
   "types": "types/index.d.ts",
