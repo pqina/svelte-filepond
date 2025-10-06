@@ -6,11 +6,13 @@ Svelte FilePond is a handy adapter component for [FilePond](https://pqina.nl/fil
 [![npm version](https://badge.fury.io/js/svelte-filepond.svg)](https://www.npmjs.com/package/svelte-filepond)
 ![npm](https://img.shields.io/npm/dt/svelte-filepond)
 
+[Documentation](https://pqina.nl/filepond/docs) • [Discord](https://discord.gg/KTyymsrTrX) • [Example project](https://stackblitz.com/github/pqina/pintura-example-svelte?file=src%2FApp.svelte%3AL152)
+
 ---
 
 [<img src="https://github.com/pqina/filepond-github-assets/blob/master/header.svg" alt="FilePond"/>](https://www.buymeacoffee.com/rikschennink/)
 
-[Buy me a Coffee](https://www.buymeacoffee.com/rikschennink/) / [Use FilePond with Pintura](https://pqina.nl/pintura/?ref=github-filepond) / [Dev updates on Twitter](https://twitter.com/rikschennink/)
+[Buy me a Coffee](https://www.buymeacoffee.com/rikschennink/) • [Use FilePond with Pintura](https://pqina.nl/pintura/?ref=github-filepond) • [Dev updates](https://rik.schenn.ink)
 
 ---
 
